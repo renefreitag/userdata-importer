@@ -1,5 +1,6 @@
 package finance.L21s.userdataimporter.model;
 
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -20,5 +21,6 @@ public class SystemUser implements Serializable {
     private String email;
 
     @OneToMany(mappedBy = "systemUser", cascade = CascadeType.ALL)
+    @JsonManagedReference
     private List<Role> roles;
 }

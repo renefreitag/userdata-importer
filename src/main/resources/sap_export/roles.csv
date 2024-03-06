@@ -1,0 +1,9 @@
+user_id,role
+3000,read
+3000,delete
+3000,write
+3000,admin
+1000,read
+1000,write
+1000,delete
+2000,read

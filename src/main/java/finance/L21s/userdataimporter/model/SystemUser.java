@@ -12,6 +12,7 @@ import java.util.List;
 @AllArgsConstructor
 @ToString
 @Entity
+@Builder
 @Table(name = "systemuser")
 public class SystemUser implements Serializable {
     @Id

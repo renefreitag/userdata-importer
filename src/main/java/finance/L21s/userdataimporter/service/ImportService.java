@@ -19,19 +19,17 @@ import java.util.stream.Collectors;
 @Service
 public class ImportService {
 
-    private static final String USERS_CSV = "src/main/resources/sap_export/users.csv";
-    private static final String ROLES_CSV = "src/main/resources/sap_export/roles.csv";
 
     private final SystemUserRepository systemUserRepository;
     private final RoleRepository roleRepository;
 
 
-    public void importData() throws IOException, CsvException {
-        importUsers();
-        importRoles();
+    public void importData(String usersCsvPath, String rolesCsvPath) throws IOException, CsvException {
+        importUsers(usersCsvPath);
+        importRoles(rolesCsvPath);
     }
 
-    private void importUsers() throws IOException, CsvException {
+    private void importUsers(String path) throws IOException, CsvException {
         List<SystemUser> existingUsers = systemUserRepository.findAll()
                 .stream().toList();
 
@@ -41,8 +39,7 @@ public class ImportService {
         List<SystemUser> newOrEditedUsersList = new ArrayList<>();
         List<Integer> allImportedUserIdsList = new ArrayList<>();
 
-        try (CSVReader reader = new CSVReader(new FileReader(USERS_CSV))) {
-            // Skip the header row
+        try (CSVReader reader = new CSVReader(new FileReader(path))) {
             reader.readNext();
             String[] line;
             while ((line = reader.readNext()) != null) {
@@ -67,7 +64,7 @@ public class ImportService {
         systemUserRepository.saveAll(newOrEditedUsersList);
     }
 
-    private void importRoles() throws IOException, CsvException {
+    private void importRoles(String path) throws IOException, CsvException {
         List<SystemUser> existingUsers = systemUserRepository.findAll()
                 .stream().toList();
         Map<Integer, SystemUser> existingUsersMap = existingUsers.stream()
@@ -82,8 +79,7 @@ public class ImportService {
         List<Role> newRolesList = new ArrayList<>();
         Set<String> allImportedRolesList = new HashSet<>();
 
-        try (CSVReader reader = new CSVReader(new FileReader(ROLES_CSV))) {
-            // Skip the header row
+        try (CSVReader reader = new CSVReader(new FileReader(path))) {
             reader.readNext();
             String[] line;
             while ((line = reader.readNext()) != null) {

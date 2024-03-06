@@ -65,9 +65,8 @@ public class ImportService {
     }
 
     private void importRoles(String path) throws IOException, CsvException {
-        List<SystemUser> existingUsers = systemUserRepository.findAll()
-                .stream().toList();
-        Map<Integer, SystemUser> existingUsersMap = existingUsers.stream()
+        Map<Integer, SystemUser> existingUsersMap = systemUserRepository.findAll()
+                .stream()
                 .collect(Collectors.toMap(SystemUser::getId, Function.identity()));
 
         List<Role> existingRoles = roleRepository.findAll()

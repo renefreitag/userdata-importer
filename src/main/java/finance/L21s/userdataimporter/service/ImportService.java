@@ -11,9 +11,7 @@ import org.springframework.stereotype.Service;
 
 import java.io.FileReader;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -29,19 +27,19 @@ public class ImportService {
 
 
     public void importData() throws IOException, CsvException {
+        importUsers();
+        importRoles();
+    }
+
+    private void importUsers() throws IOException, CsvException {
         List<SystemUser> existingUsers = systemUserRepository.findAll()
                 .stream().toList();
 
-        importUsers(existingUsers);
-//        importRoles(existingUsers);
-    }
-
-    private void importUsers(List<SystemUser> existingUsers) throws IOException, CsvException {
         Map<String, SystemUser> existingUsersMap = existingUsers.stream()
                 .collect(Collectors.toMap(u -> u.getId() + u.getEmail(), Function.identity()));
 
         List<SystemUser> newOrEditedUsersList = new ArrayList<>();
-        List<SystemUser> allImportedUsersList = new ArrayList<>();
+        List<Integer> allImportedUserIdsList = new ArrayList<>();
 
         try (CSVReader reader = new CSVReader(new FileReader(USERS_CSV))) {
             // Skip the header row
@@ -56,24 +54,33 @@ public class ImportService {
                 if (!existingUsersMap.containsKey(id + email)) {
                     newOrEditedUsersList.add(user);
                 }
-                allImportedUsersList.add(user);
+                allImportedUserIdsList.add(user.getId());
             }
         }
 
         List<SystemUser> usersToDelete = existingUsers.stream()
-                .filter(u -> !allImportedUsersList.contains(u))
+                .filter(existingUser -> !allImportedUserIdsList.contains(existingUser.getId()))
                 .collect(Collectors.toList());
 
         systemUserRepository.deleteAll(usersToDelete);
+        roleRepository.deleteAllBySystemUserIn(usersToDelete);
         systemUserRepository.saveAll(newOrEditedUsersList);
     }
 
-    private void importRoles(List<SystemUser> users) throws IOException, CsvException {
-        List<Role> newRolesList = new ArrayList<>();
-        List<Role> allImportedRolesList = new ArrayList<>();
+    private void importRoles() throws IOException, CsvException {
+        List<SystemUser> existingUsers = systemUserRepository.findAll()
+                .stream().toList();
+        Map<Integer, SystemUser> existingUsersMap = existingUsers.stream()
+                .collect(Collectors.toMap(SystemUser::getId, Function.identity()));
+
         List<Role> existingRoles = roleRepository.findAll()
                 .stream().toList();
-        List<Role> rolesToDelete = new ArrayList<>();
+
+        Map<String, Role> existingRolesMap = existingRoles.stream()
+                .collect(Collectors.toMap(r -> r.getSystemUser().getId() + r.getRoleName(), Function.identity()));
+
+        List<Role> newRolesList = new ArrayList<>();
+        Set<String> allImportedRolesList = new HashSet<>();
 
         try (CSVReader reader = new CSVReader(new FileReader(ROLES_CSV))) {
             // Skip the header row
@@ -85,26 +92,21 @@ public class ImportService {
 
                 Role role = new Role();
                 role.setRoleName(roleName);
-                role.setSystemUser(users.stream()
-                        .filter(u -> u.getId().equals(userId))
-                        .findFirst()
-                        .orElse(null));
+                role.setSystemUser(existingUsersMap.get(userId));
                 if (role.getSystemUser() == null) {
-                    rolesToDelete.add(role);
                     continue;
                 }
-                if(existingRoles.stream().noneMatch(r -> r.getRoleName().equals(roleName) && r.getSystemUser().getId().equals(userId))) {
+                if (!existingRolesMap.containsKey(userId + roleName)) {
                     newRolesList.add(role);
                 }
-                allImportedRolesList.add(role);
+                allImportedRolesList.add(role.getSystemUser().getId() + role.getRoleName());
             }
         }
-        // delete roles that are not in the csv file
-        rolesToDelete.addAll(existingRoles.stream()
-                .filter(r -> allImportedRolesList.stream()
-                        .noneMatch(r2 -> r2.getRoleName().equals(r.getRoleName()) && r2.getSystemUser().getId().equals(r.getSystemUser().getId())))
-                .toList());
-        roleRepository.deleteAll(rolesToDelete);
+        List<Role> rolesToDelete = existingRoles.stream()
+                .filter(existingRole -> !allImportedRolesList.contains(existingRole.getSystemUser().getId() + existingRole.getRoleName()))
+                .collect(Collectors.toList());
+
         roleRepository.saveAll(newRolesList);
+        roleRepository.deleteAll(rolesToDelete);
     }
 }
